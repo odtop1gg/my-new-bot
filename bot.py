@@ -12,6 +12,16 @@ bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 def send_welcome(message):
     bot.reply_to(message, "✅ Бот работает! Отправь текст — я отвечу через ИИ.")
 
+# ===== ОБРАБОТЧИКИ КОМАНД =====
+@bot.message_handler(commands=['help'])
+def send_help(message):
+    bot.reply_to(message, "Я — ИИ-помощник. Отправь текст, и я отвечу.")
+
+@bot.message_handler(commands=['info'])
+def send_info(message):
+    bot.reply_to(message, "Бот работает на GPT-4o-mini. Доступен 24/7. Создан для помощи в любых вопросах.")
+
+# ===== УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК (идёт последним) =====
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     try:
