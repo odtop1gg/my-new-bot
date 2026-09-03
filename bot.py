@@ -1,5 +1,6 @@
 import telebot
 import requests
+import json
 
 BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
@@ -13,7 +14,6 @@ def handle_message(message):
     try:
         bot.send_chat_action(message.chat.id, 'typing')
         
-        # ===== 9Router настройки =====
         url = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
         headers = {
             "Content-Type": "application/json",
@@ -23,15 +23,28 @@ def handle_message(message):
             "model": "kr/claude-sonnet-4.5",
             "messages": [{"role": "user", "content": message.text}]
         }
-        # ============================
         
         response = requests.post(url, headers=headers, json=data, timeout=30)
         
-        if response.status_code == 200:
-            reply = response.json()["choices"][0]["message"]["content"]
-            bot.reply_to(message, reply[:4096])
-        else:
-            bot.reply_to(message, f"❌ Ошибка: {response.status_code}\n{response.text}")
+        # ===== ДИАГНОСТИКА =====
+        # Если статус не 200 — показываем полный ответ
+        if response.status_code != 200:
+            bot.reply_to(message, f"❌ Статус: {response.status_code}\nОтвет сервера: {response.text[:500]}")
+            return
+        
+        # Пытаемся распарсить JSON
+        try:
+            response_json = response.json()
+        except json.JSONDecodeError:
+            bot.reply_to(message, f"❌ Ошибка: сервер вернул не JSON. Текст:\n{response.text[:500]}")
+            return
+        # =========================
+        
+        reply = response_json["choices"][0]["message"]["content"]
+        bot.reply_to(message, reply[:4096])
+        
+    except requests.exceptions.ConnectionError:
+        bot.reply_to(message, "❌ Не удалось подключиться к 9Router. Проверь, что сервис запущен.")
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
