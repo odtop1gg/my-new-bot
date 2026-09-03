@@ -6,41 +6,32 @@ from datetime import date
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
 API_KEY_9ROUTER = "sk-9a01ae3cc4d291b1-vwry29-564841cc"
-URL_9ROUTER = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
+URL_9ROUTER = "https://9router-production-b249e.up.railway.app/v1/chat/completions"  # Универсальный эндпоинт
 
-# ===== СИСТЕМНЫЙ ПРОМПТ (можешь изменить) =====
+# ===== СИСТЕМНЫЙ ПРОМПТ =====
 SYSTEM_PROMPT = (
-    "Ты — AI-помощник, созданный пользователем @NeUstaI для помощи в любых вопросах. "
-    "Ты основан на передовой языковой модели Claude 4.5 (Sonnet). "
-    "Ты не являешься частью Kiro или любого другого сервиса — ты самостоятельный бот. "
-    "Отвечай на русском языке, понятно, дружелюбно и по делу. "
-    "Если тебя спросят, кто ты или какая у тебя модель, отвечай честно: "
-    "«Я — AI-помощник на базе Claude 4.5. Меня создал NeUstaI для решения различных задач.» "
-    "Не упоминай Kiro, 9Router или другие технические детали, если не спрашивают. "
-    "Будь полезным, вежливым и старайся давать развёрнутые, но не перегруженные ответы."
+    "Ты — AI-помощник, созданный пользователем. "
+    "Ты работаешь на базе передовой модели Claude 4.5 Sonnet. "
+    "Отвечай на русском языке, дружелюбно, понятно и по делу. "
+    "Если тебя спросят о твоей модели, отвечай: "
+    "«Я — Claude 4.5 Sonnet, работаю как AI-помощник в этом боте.» "
+    "Не упоминай Kiro, 9Router или другие технические детали."
 )
-# ===============================================
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
 # ===== ДОСТУПНЫЕ МОДЕЛИ =====
 MODELS = {
-    "kr/claude-sonnet-4.5": {"name": "Claude Sonnet 4.5", "desc": "Универсальная, лучший баланс", "limit": 200},
-    "kr/claude-haiku-4.5": {"name": "Claude Haiku 4.5", "desc": "Быстрая, лёгкая", "limit": 200},
-    "kr/claude-sonnet-4.5-thinking": {"name": "Claude Sonnet 4.5 (Thinking)", "desc": "Глубокие рассуждения", "limit": 150},
-    "kr/claude-haiku-4.5-thinking": {"name": "Claude Haiku 4.5 (Thinking)", "desc": "Быстрая с мышлением", "limit": 150},
-    "kr/claude-sonnet-4.5-agentic": {"name": "Claude Sonnet 4.5 (Agentic)", "desc": "Выполнение действий", "limit": 150},
-    "kr/claude-haiku-4.5-agentic": {"name": "Claude Haiku 4.5 (Agentic)", "desc": "Быстрая, агентная", "limit": 150},
-    "kr/claude-sonnet-4.5-thinking-agentic": {"name": "Claude Sonnet 4.5 (Thinking+Agentic)", "desc": "Максимальная мощность", "limit": 100},
-    "kr/claude-haiku-4.5-thinking-agentic": {"name": "Claude Haiku 4.5 (Thinking+Agentic)", "desc": "Быстрая, мощная", "limit": 100},
-    "kr/qwen3-coder-next": {"name": "Qwen3 Coder", "desc": "Для кода и программирования", "limit": 200},
-    "kr/deepseek-3.2": {"name": "DeepSeek 3.2", "desc": "Альтернативная, бюджетная", "limit": 200},
-    "kr/glm-5": {"name": "GLM-5", "desc": "Китайская модель", "limit": 200},
+    "kr/claude-sonnet-4.5": {"name": "Claude Sonnet 4.5", "desc": "Универсальная", "limit": 200},
+    "kr/claude-haiku-4.5": {"name": "Claude Haiku 4.5", "desc": "Быстрая", "limit": 200},
+    "kr/qwen3-coder-next": {"name": "Qwen3 Coder", "desc": "Для кода", "limit": 200},
+    "kr/deepseek-3.2": {"name": "DeepSeek 3.2", "desc": "Альтернативная", "limit": 200},
+    "kr/glm-5": {"name": "GLM-5", "desc": "Китайская", "limit": 200},
 }
 
 user_models = {}
 user_requests = {}
-user_history = {}  # Хранилище истории
+user_history = {}
 
 def get_user_model(user_id):
     return user_models.get(user_id, "kr/claude-sonnet-4.5")
@@ -81,7 +72,7 @@ def get_user_history(user_id):
 def add_to_history(user_id, role, content):
     history = get_user_history(user_id)
     history.append({"role": role, "content": content})
-    if len(history) > 10:  # Храним последние 10 сообщений
+    if len(history) > 10:
         history.pop(0)
 
 @bot.message_handler(commands=['start'])
@@ -102,10 +93,10 @@ def send_help(message):
         message,
         "📖 Команды:\n"
         "/start — приветствие\n"
-        "/model — выбрать модель ИИ\n"
+        "/model — выбрать модель\n"
         "/limits — остаток запросов\n"
-        "/help — эта справка\n"
-        "/info — информация о боте\n\n"
+        "/help — справка\n"
+        "/info — о боте\n\n"
         "Просто напиши вопрос — я отвечу."
     )
 
@@ -113,13 +104,12 @@ def send_help(message):
 def send_info(message):
     bot.reply_to(
         message,
-        "🤖 Бот работает с 11 моделями:\n"
+        "🤖 Бот работает через 9Router с доступом к моделям:\n"
         "• Claude Sonnet 4.5 (универсальная)\n"
         "• Claude Haiku 4.5 (быстрая)\n"
-        "• Thinking-версии (глубокие рассуждения)\n"
-        "• Agentic-версии (выполнение действий)\n"
         "• Qwen3 Coder (для кода)\n"
-        "• DeepSeek 3.2 и GLM-5 (альтернативные)\n\n"
+        "• DeepSeek 3.2\n"
+        "• GLM-5\n\n"
         "Доступ 24/7. Все модели бесплатны."
     )
 
@@ -145,9 +135,9 @@ def show_models(message):
     current_name = MODELS.get(current_model, {}).get("name", "не выбрана")
     remaining = get_remaining_requests(user_id)
 
-    text = f"🧠 *Выбери модель ИИ:*\n\n"
-    text += f"📌 *Текущая модель:* {current_name}\n"
-    text += f"📊 *Остаток запросов:* {remaining}\n\n"
+    text = f"🧠 *Выбери модель:*\n\n"
+    text += f"📌 *Текущая:* {current_name}\n"
+    text += f"📊 *Остаток:* {remaining}\n\n"
 
     markup = telebot.types.InlineKeyboardMarkup()
     for model_id, info in MODELS.items():
@@ -169,7 +159,7 @@ def set_model_callback(call):
     bot.edit_message_text(
         f"✅ Модель изменена на **{model_name}**.\n"
         f"Лимит: {limit} запросов/день.\n"
-        f"Остаток на сегодня: {remaining}",
+        f"Остаток: {remaining}",
         call.message.chat.id,
         call.message.message_id,
         parse_mode="Markdown"
@@ -181,25 +171,24 @@ def handle_message(message):
         user_id = message.chat.id
 
         if not can_send_message(user_id):
-            bot.reply_to(message, "⚠️ Ты исчерпал дневной лимит запросов для этой модели.")
+            bot.reply_to(message, "⚠️ Ты исчерпал дневной лимит.")
             return
 
         model_id = get_user_model(user_id)
 
         # Добавляем сообщение пользователя в историю
         add_to_history(user_id, "user", message.text)
-
-        # Собираем историю для запроса
         history = get_user_history(user_id)
 
-        # Формируем payload с системным промптом и историей
+        # ===== ОТПРАВКА ЗАПРОСА =====
         payload = {
             "model": model_id,
-            "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + history,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                *history
+            ],
             "stream": False
         }
-
-        bot.send_chat_action(user_id, 'typing')
 
         headers = {
             "Content-Type": "application/json",
@@ -211,20 +200,19 @@ def handle_message(message):
         if response.status_code == 200:
             try:
                 reply = response.json()["choices"][0]["message"]["content"]
-                # Добавляем ответ бота в историю
                 add_to_history(user_id, "assistant", reply)
                 bot.reply_to(message, reply[:4096])
-            except (KeyError, json.JSONDecodeError):
-                bot.reply_to(message, f"❌ Ошибка: не удалось распарсить ответ от модели.")
+            except (KeyError, json.JSONDecodeError) as e:
+                bot.reply_to(message, f"❌ Ошибка парсинга ответа: {str(e)[:100]}")
         else:
             bot.reply_to(message, f"❌ Ошибка API: {response.status_code}\n{response.text[:300]}")
 
     except requests.exceptions.Timeout:
         bot.reply_to(message, "⏳ Модель не отвечает. Попробуй ещё раз.")
     except requests.exceptions.ConnectionError:
-        bot.reply_to(message, "❌ Не удалось подключиться к 9Router. Проверь, что сервис запущен.")
+        bot.reply_to(message, "❌ Не удалось подключиться к 9Router.")
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот с памятью и системным промптом запущен...")
+print("🚀 Бот с системным промптом запущен...")
 bot.infinity_polling()
