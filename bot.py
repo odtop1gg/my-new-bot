@@ -7,7 +7,19 @@ from datetime import date
 BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
 API_KEY_9ROUTER = "sk-9a01ae3cc4d291b1-vwry29-564841cc"
 URL_9ROUTER = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
-# ====================
+
+# ===== СИСТЕМНЫЙ ПРОМПТ (можешь изменить) =====
+SYSTEM_PROMPT = (
+    "Ты — AI-помощник, созданный пользователем @NeUstaI для помощи в любых вопросах. "
+    "Ты основан на передовой языковой модели Claude 4.5 (Sonnet). "
+    "Ты не являешься частью Kiro или любого другого сервиса — ты самостоятельный бот. "
+    "Отвечай на русском языке, понятно, дружелюбно и по делу. "
+    "Если тебя спросят, кто ты или какая у тебя модель, отвечай честно: "
+    "«Я — AI-помощник на базе Claude 4.5. Меня создал NeUstaI для решения различных задач.» "
+    "Не упоминай Kiro, 9Router или другие технические детали, если не спрашивают. "
+    "Будь полезным, вежливым и старайся давать развёрнутые, но не перегруженные ответы."
+)
+# ===============================================
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
@@ -28,6 +40,7 @@ MODELS = {
 
 user_models = {}
 user_requests = {}
+user_history = {}  # Хранилище истории
 
 def get_user_model(user_id):
     return user_models.get(user_id, "kr/claude-sonnet-4.5")
@@ -60,13 +73,24 @@ def get_remaining_requests(user_id):
     used = user_requests[user_id]["count"]
     return max(0, limit - used)
 
+def get_user_history(user_id):
+    if user_id not in user_history:
+        user_history[user_id] = []
+    return user_history[user_id]
+
+def add_to_history(user_id, role, content):
+    history = get_user_history(user_id)
+    history.append({"role": role, "content": content})
+    if len(history) > 10:  # Храним последние 10 сообщений
+        history.pop(0)
+
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     model_id = get_user_model(message.chat.id)
     model_name = MODELS.get(model_id, {}).get("name", "Claude Sonnet 4.5")
     bot.reply_to(
         message,
-        f"✅ Бот работает через 9Router!\n"
+        f"✅ Бот работает!\n"
         f"Текущая модель: {model_name}\n"
         f"Лимит: {get_model_limit(model_id)} запросов/день\n\n"
         f"Команды:\n/model — выбрать модель\n/limits — остаток запросов\n/help — помощь\n/info — о боте"
@@ -89,7 +113,7 @@ def send_help(message):
 def send_info(message):
     bot.reply_to(
         message,
-        "🤖 Бот работает через 9Router с доступом к 11 моделям:\n"
+        "🤖 Бот работает с 11 моделями:\n"
         "• Claude Sonnet 4.5 (универсальная)\n"
         "• Claude Haiku 4.5 (быстрая)\n"
         "• Thinking-версии (глубокие рассуждения)\n"
@@ -161,13 +185,22 @@ def handle_message(message):
             return
 
         model_id = get_user_model(user_id)
-        bot.send_chat_action(user_id, 'typing')
 
+        # Добавляем сообщение пользователя в историю
+        add_to_history(user_id, "user", message.text)
+
+        # Собираем историю для запроса
+        history = get_user_history(user_id)
+
+        # Формируем payload с системным промптом и историей
         payload = {
             "model": model_id,
-            "messages": [{"role": "user", "content": message.text}],
+            "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + history,
             "stream": False
         }
+
+        bot.send_chat_action(user_id, 'typing')
+
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {API_KEY_9ROUTER}"
@@ -178,6 +211,8 @@ def handle_message(message):
         if response.status_code == 200:
             try:
                 reply = response.json()["choices"][0]["message"]["content"]
+                # Добавляем ответ бота в историю
+                add_to_history(user_id, "assistant", reply)
                 bot.reply_to(message, reply[:4096])
             except (KeyError, json.JSONDecodeError):
                 bot.reply_to(message, f"❌ Ошибка: не удалось распарсить ответ от модели.")
@@ -191,5 +226,5 @@ def handle_message(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот на 9Router с выбором моделей запущен...")
+print("🚀 Бот с памятью и системным промптом запущен...")
 bot.infinity_polling()
