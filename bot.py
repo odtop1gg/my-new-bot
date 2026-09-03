@@ -12,17 +12,21 @@ def send_welcome(message):
 def handle_message(message):
     try:
         bot.send_chat_action(message.chat.id, 'typing')
-        # Локальный эндпоинт 9Router
+        
+        # ===== 9Router настройки =====
         url = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
-headers = {
-    "Content-Type": "application/json",
-    "Authorization": "Bearer sk-9a01ae3cc4d291b1-vwry29-564841cc"  # Твой новый ключ
-}
-data = {
-    "model": "kr/claude-sonnet-4.5",  # Модель через Kiro AI
-    "messages": [{"role": "user", "content": message.text}]
-}
-response = requests.post(url, headers=headers, json=data, timeout=30)
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer sk-9a01ae3cc4d291b1-vwry29-564841cc"
+        }
+        data = {
+            "model": "kr/claude-sonnet-4.5",
+            "messages": [{"role": "user", "content": message.text}]
+        }
+        # ============================
+        
+        response = requests.post(url, headers=headers, json=data, timeout=30)
+        
         if response.status_code == 200:
             reply = response.json()["choices"][0]["message"]["content"]
             bot.reply_to(message, reply[:4096])
