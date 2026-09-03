@@ -20,31 +20,18 @@ def handle_message(message):
             "Authorization": "Bearer sk-9a01ae3cc4d291b1-vwry29-564841cc"
         }
         data = {
-            "model": "kr/claude-sonnet-4.5",
-            "messages": [{"role": "user", "content": message.text}]
+            "model": "kr/claude-sonnet-4.5-agentic",
+            "messages": [{"role": "user", "content": message.text}],
+            "stream": False  # <--- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ
         }
         
         response = requests.post(url, headers=headers, json=data, timeout=30)
         
-        # ===== ДИАГНОСТИКА =====
-        # Если статус не 200 — показываем полный ответ
-        if response.status_code != 200:
-            bot.reply_to(message, f"❌ Статус: {response.status_code}\nОтвет сервера: {response.text[:500]}")
-            return
-        
-        # Пытаемся распарсить JSON
-        try:
-            response_json = response.json()
-        except json.JSONDecodeError:
-            bot.reply_to(message, f"❌ Ошибка: сервер вернул не JSON. Текст:\n{response.text[:500]}")
-            return
-        # =========================
-        
-        reply = response_json["choices"][0]["message"]["content"]
-        bot.reply_to(message, reply[:4096])
-        
-    except requests.exceptions.ConnectionError:
-        bot.reply_to(message, "❌ Не удалось подключиться к 9Router. Проверь, что сервис запущен.")
+        if response.status_code == 200:
+            reply = response.json()["choices"][0]["message"]["content"]
+            bot.reply_to(message, reply[:4096])
+        else:
+            bot.reply_to(message, f"❌ Ошибка: {response.status_code}\n{response.text[:300]}")
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
