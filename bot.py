@@ -1,26 +1,22 @@
 import telebot
 import requests
 
-API_KEY = "blnk_ak_XM9DtjY0ScSvAwL0qmiguWbh59rDJ-GjFJWioUSZcKIG-sC6"
 BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
-
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "✅ Бот работает через Blink! Отправь текст.")
+    bot.reply_to(message, "✅ Бот работает через 9Router + Claude Sonnet 4.5!")
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     try:
         bot.send_chat_action(message.chat.id, 'typing')
-        url = "https://core.blink.new/api/v1/ai/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json"
-        }
+        # Локальный эндпоинт 9Router
+        url = "http://localhost:20128/v1/chat/completions"
+        headers = {"Content-Type": "application/json"}
         data = {
-            "model": "anthropic/claude-sonnet-4.5",  # Рекомендуемая модель
+            "model": "kr/claude-sonnet-4.5",
             "messages": [{"role": "user", "content": message.text}]
         }
         response = requests.post(url, headers=headers, json=data, timeout=30)
@@ -28,9 +24,9 @@ def handle_message(message):
             reply = response.json()["choices"][0]["message"]["content"]
             bot.reply_to(message, reply[:4096])
         else:
-            bot.reply_to(message, f"❌ Ошибка API: {response.status_code}\n{response.text}")
+            bot.reply_to(message, f"❌ Ошибка: {response.status_code}\n{response.text}")
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот на Blink запущен...")
+print("🚀 Бот на 9Router запущен...")
 bot.infinity_polling()
