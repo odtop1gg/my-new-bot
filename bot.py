@@ -2,23 +2,34 @@ import telebot
 import requests
 import json
 from datetime import date
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
 API_KEY_9ROUTER = "sk-9a01ae3cc4d291b1-vwry29-564841cc"
-URL_9ROUTER = "https://9router-production-b249e.up.railway.app/v1/chat/completions"  # Универсальный эндпоинт
+URL_9ROUTER = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
 
 # ===== СИСТЕМНЫЙ ПРОМПТ =====
 SYSTEM_PROMPT = (
-    "Ты — AI-помощник, созданный пользователем. "
-    "Ты работаешь на базе передовой модели Claude 4.5 Sonnet. "
+    "Ты — AI-помощник. Ты работаешь на базе передовой модели Claude 4.5 Sonnet. "
     "Отвечай на русском языке, дружелюбно, понятно и по делу. "
     "Если тебя спросят о твоей модели, отвечай: "
     "«Я — Claude 4.5 Sonnet, работаю как AI-помощник в этом боте.» "
-    "Не упоминай Kiro, 9Router или другие технические детали."
+    "Никогда не упоминай Kiro, 9Router или другие технические детали."
 )
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
+
+# ===== КЛАВИАТУРА =====
+def main_menu():
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(
+        KeyboardButton("📖 Помощь"),
+        KeyboardButton("ℹ️ О боте"),
+        KeyboardButton("🧠 Модель"),
+        KeyboardButton("📊 Лимиты")
+    )
+    return markup
 
 # ===== ДОСТУПНЫЕ МОДЕЛИ =====
 MODELS = {
@@ -75,42 +86,62 @@ def add_to_history(user_id, role, content):
     if len(history) > 10:
         history.pop(0)
 
+# ===== КОМАНДЫ =====
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     model_id = get_user_model(message.chat.id)
     model_name = MODELS.get(model_id, {}).get("name", "Claude Sonnet 4.5")
-    bot.reply_to(
-        message,
+    bot.send_message(
+        message.chat.id,
         f"✅ Бот работает!\n"
         f"Текущая модель: {model_name}\n"
         f"Лимит: {get_model_limit(model_id)} запросов/день\n\n"
-        f"Команды:\n/model — выбрать модель\n/limits — остаток запросов\n/help — помощь\n/info — о боте"
+        f"Выбери действие на клавиатуре ниже или просто напиши вопрос.",
+        reply_markup=main_menu()
     )
+
+@bot.message_handler(func=lambda message: message.text == "📖 Помощь")
+def help_button(message):
+    send_help(message)
+
+@bot.message_handler(func=lambda message: message.text == "ℹ️ О боте")
+def info_button(message):
+    send_info(message)
+
+@bot.message_handler(func=lambda message: message.text == "🧠 Модель")
+def model_button(message):
+    show_models(message)
+
+@bot.message_handler(func=lambda message: message.text == "📊 Лимиты")
+def limits_button(message):
+    show_limits(message)
 
 @bot.message_handler(commands=['help'])
 def send_help(message):
-    bot.reply_to(
-        message,
+    bot.send_message(
+        message.chat.id,
         "📖 Команды:\n"
         "/start — приветствие\n"
         "/model — выбрать модель\n"
         "/limits — остаток запросов\n"
         "/help — справка\n"
         "/info — о боте\n\n"
-        "Просто напиши вопрос — я отвечу."
+        "Или используй кнопки внизу.",
+        reply_markup=main_menu()
     )
 
 @bot.message_handler(commands=['info'])
 def send_info(message):
-    bot.reply_to(
-        message,
+    bot.send_message(
+        message.chat.id,
         "🤖 Бот работает через 9Router с доступом к моделям:\n"
         "• Claude Sonnet 4.5 (универсальная)\n"
         "• Claude Haiku 4.5 (быстрая)\n"
         "• Qwen3 Coder (для кода)\n"
         "• DeepSeek 3.2\n"
         "• GLM-5\n\n"
-        "Доступ 24/7. Все модели бесплатны."
+        "Доступ 24/7. Все модели бесплатны.",
+        reply_markup=main_menu()
     )
 
 @bot.message_handler(commands=['limits'])
@@ -120,12 +151,13 @@ def show_limits(message):
     model_id = get_user_model(user_id)
     model_name = MODELS.get(model_id, {}).get("name", "неизвестная модель")
     limit = get_model_limit(model_id)
-    bot.reply_to(
-        message,
+    bot.send_message(
+        message.chat.id,
         f"📊 *Остаток запросов на сегодня:*\n"
         f"Модель: {model_name}\n"
         f"Осталось: {remaining} из {limit}",
-        parse_mode="Markdown"
+        parse_mode="Markdown",
+        reply_markup=main_menu()
     )
 
 @bot.message_handler(commands=['model'])
@@ -165,6 +197,7 @@ def set_model_callback(call):
         parse_mode="Markdown"
     )
 
+# ===== ОСНОВНОЙ ОБРАБОТЧИК =====
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     try:
@@ -175,12 +208,9 @@ def handle_message(message):
             return
 
         model_id = get_user_model(user_id)
-
-        # Добавляем сообщение пользователя в историю
         add_to_history(user_id, "user", message.text)
         history = get_user_history(user_id)
 
-        # ===== ОТПРАВКА ЗАПРОСА =====
         payload = {
             "model": model_id,
             "messages": [
@@ -214,5 +244,5 @@ def handle_message(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот с системным промптом запущен...")
+print("🚀 Бот с кнопками и системным промптом запущен...")
 bot.infinity_polling()
