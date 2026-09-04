@@ -7,42 +7,57 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
 
-# ===== 9ROUTER =====
-KIRO_URL = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
-KIRO_API_KEY = "sk-9a01ae3cc4d291b1-vwry29-564841cc"
+# ===== OPENROUTER =====
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_API_KEY = "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"
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
-# ===== МОДЕЛИ OpenCode Free (префикс oc/) =====
+# ===== МОДЕЛИ OpenRouter (бесплатные) =====
 MODELS = {
-    "oc/claude-sonnet-4.5": {
-        "name": "Claude Sonnet 4.5",
+    "openai/gpt-4o-mini": {
+        "name": "GPT-4o-mini",
+        "desc": "Быстрая и дешёвая",
+        "limit": 200
+    },
+    "openai/gpt-4o": {
+        "name": "GPT-4o",
+        "desc": "Мультимодальная",
+        "limit": 200
+    },
+    "anthropic/claude-3.5-sonnet": {
+        "name": "Claude 3.5 Sonnet",
         "desc": "Универсальная",
         "limit": 200
     },
-    "oc/claude-haiku-4.5": {
-        "name": "Claude Haiku 4.5",
+    "anthropic/claude-3-haiku": {
+        "name": "Claude 3 Haiku",
         "desc": "Быстрая и лёгкая",
         "limit": 200
     },
-    "oc/qwen3-coder-next": {
-        "name": "Qwen3 Coder",
-        "desc": "Для кода",
+    "google/gemini-2.0-flash": {
+        "name": "Gemini 2.0 Flash",
+        "desc": "От Google",
         "limit": 200
     },
-    "oc/deepseek-3.2": {
-        "name": "DeepSeek 3.2",
+    "google/gemini-2.5-flash-lite": {
+        "name": "Gemini 2.5 Flash Lite",
+        "desc": "Очень быстрая",
+        "limit": 200
+    },
+    "deepseek/deepseek-chat": {
+        "name": "DeepSeek Chat",
         "desc": "Альтернативная",
         "limit": 200
     },
-    "oc/glm-5": {
-        "name": "GLM-5",
-        "desc": "Китайская",
+    "meta-llama/llama-3.3-70b-instruct:free": {
+        "name": "Llama 3.3 70B",
+        "desc": "От Meta, мощная",
         "limit": 200
     },
-    "oc/mimo-v2.5-free": {
-        "name": "Mimo V2.5 Free",
-        "desc": "От Xiaomi",
+    "mistralai/mistral-7b-instruct:free": {
+        "name": "Mistral 7B",
+        "desc": "Открытая",
         "limit": 200
     },
 }
@@ -52,7 +67,7 @@ user_requests = {}
 user_history = {}
 
 def get_user_model(user_id):
-    return user_models.get(user_id, "oc/claude-sonnet-4.5")
+    return user_models.get(user_id, "openai/gpt-4o-mini")
 
 def set_user_model(user_id, model_id):
     user_models[user_id] = model_id
@@ -93,8 +108,8 @@ def add_to_history(user_id, role, content):
     if len(history) > 20:
         history.pop(0)
 
-# ===== ОТПРАВКА В 9ROUTER =====
-def send_to_kiro(model_id, history):
+# ===== ОТПРАВКА В OPENROUTER =====
+def send_to_openrouter(model_id, history):
     payload = {
         "model": model_id,
         "messages": history,
@@ -102,13 +117,13 @@ def send_to_kiro(model_id, history):
     }
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {KIRO_API_KEY}"
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}"
     }
-    response = requests.post(KIRO_URL, headers=headers, json=payload, timeout=45)
+    response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=45)
     if response.status_code == 200:
         return response.json()["choices"][0]["message"]["content"]
     else:
-        raise Exception(f"Ошибка 9Router: {response.status_code}")
+        raise Exception(f"Ошибка OpenRouter: {response.status_code}")
 
 # ===== КЛАВИАТУРА =====
 def main_menu():
@@ -125,10 +140,10 @@ def main_menu():
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     model_id = get_user_model(message.chat.id)
-    model_name = MODELS.get(model_id, {}).get("name", "Claude Sonnet 4.5")
+    model_name = MODELS.get(model_id, {}).get("name", "GPT-4o-mini")
     bot.send_message(
         message.chat.id,
-        f"✅ Бот работает через 9Router + OpenCode Free!\n"
+        f"✅ Бот работает через OpenRouter!\n"
         f"Текущая модель: {model_name}\n"
         f"Лимит: {get_model_limit(model_id)} запросов/день\n\n"
         f"Выбери действие на клавиатуре или напиши вопрос.",
@@ -169,8 +184,8 @@ def send_help(message):
 def send_info(message):
     bot.send_message(
         message.chat.id,
-        "🤖 Бот работает через 9Router с провайдером OpenCode Free.\n"
-        "Доступны модели: Claude, Qwen, DeepSeek, GLM, Mimo.\n\n"
+        "🤖 Бот работает через OpenRouter.\n"
+        "Доступны модели: GPT-4, Claude, Gemini, DeepSeek, Llama, Mistral.\n\n"
         "Все модели бесплатны.",
         reply_markup=main_menu()
     )
@@ -242,7 +257,7 @@ def handle_message(message):
         add_to_history(user_id, "user", message.text)
         history = get_user_history(user_id)
 
-        reply = send_to_kiro(model_id, history)
+        reply = send_to_openrouter(model_id, history)
 
         add_to_history(user_id, "assistant", reply)
         bot.reply_to(message, reply[:4096])
@@ -250,9 +265,9 @@ def handle_message(message):
     except requests.exceptions.Timeout:
         bot.reply_to(message, "⏳ Модель не отвечает. Попробуй ещё раз.")
     except requests.exceptions.ConnectionError:
-        bot.reply_to(message, "❌ Не удалось подключиться к 9Router.")
+        bot.reply_to(message, "❌ Не удалось подключиться к OpenRouter.")
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот на 9Router + OpenCode Free запущен...")
+print("🚀 Бот на OpenRouter запущен...")
 bot.infinity_polling()
