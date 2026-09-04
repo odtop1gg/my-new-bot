@@ -4,82 +4,27 @@ import json
 from datetime import date
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
-# ===== НАСТРОЙКИ =====
 BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
-
-# ===== 9ROUTER (KIRO) =====
 KIRO_URL = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
 KIRO_API_KEY = "sk-9a01ae3cc4d291b1-vwry29-564841cc"
 
-# ===== OPENROUTER (РЕЗЕРВ) =====
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-OPENROUTER_API_KEY = "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"
-
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
-# ===== МОДЕЛИ =====
+# ===== ТОЛЬКО 3 МОДЕЛИ =====
 MODELS = {
-    # ===== KIRO (Claude и другие через 9Router) =====
     "kr/claude-sonnet-4.5": {
-        "name": "Claude Sonnet 4.5 (Kiro)",
-        "desc": "Универсальная, баланс",
-        "provider": "kiro",
+        "name": "Claude Sonnet 4.5",
+        "desc": "Универсальная",
         "limit": 200
     },
     "kr/claude-haiku-4.5": {
-        "name": "Claude Haiku 4.5 (Kiro)",
-        "desc": "Быстрая и лёгкая",
-        "provider": "kiro",
-        "limit": 200
-    },
-    "kr/qwen3-coder-next": {
-        "name": "Qwen3 Coder (Kiro)",
-        "desc": "Для кода",
-        "provider": "kiro",
+        "name": "Claude Haiku 4.5",
+        "desc": "Быстрая (резерв)",
         "limit": 200
     },
     "kr/deepseek-3.2": {
-        "name": "DeepSeek 3.2 (Kiro)",
-        "desc": "Альтернативная",
-        "provider": "kiro",
-        "limit": 200
-    },
-    "kr/glm-5": {
-        "name": "GLM-5 (Kiro)",
-        "desc": "Китайская",
-        "provider": "kiro",
-        "limit": 200
-    },
-
-    # ===== OPENROUTER (резервные бесплатные модели) =====
-    "nvidia/nemotron-3-super:free": {
-        "name": "Nemotron 3 Super (резерв)",
-        "desc": "Мощная, 1M контекста",
-        "provider": "openrouter",
-        "limit": 200
-    },
-    "zai/glm-5.2:free": {
-        "name": "GLM 5.2 (резерв)",
-        "desc": "Огромный контекст 1M",
-        "provider": "openrouter",
-        "limit": 200
-    },
-    "cohere/north-mini-code:free": {
-        "name": "North Mini Code (резерв)",
-        "desc": "Для кода и терминала",
-        "provider": "openrouter",
-        "limit": 200
-    },
-    "google/gemma-4-31b:free": {
-        "name": "Gemma 4 31B (резерв)",
-        "desc": "От Google, 256K контекста",
-        "provider": "openrouter",
-        "limit": 200
-    },
-    "minimax/minimax-m2.7:free": {
-        "name": "MiniMax M2.7 (резерв)",
-        "desc": "Бизнес-задачи",
-        "provider": "openrouter",
+        "name": "DeepSeek 3.2",
+        "desc": "Альтернатива (резерв)",
         "limit": 200
     },
 }
@@ -93,9 +38,6 @@ def get_user_model(user_id):
 
 def set_user_model(user_id, model_id):
     user_models[user_id] = model_id
-
-def get_model_info(model_id):
-    return MODELS.get(model_id, {})
 
 def get_model_limit(model_id):
     return MODELS.get(model_id, {}).get("limit", 100)
@@ -133,7 +75,6 @@ def add_to_history(user_id, role, content):
     if len(history) > 20:
         history.pop(0)
 
-# ===== ОТПРАВКА В KIRO =====
 def send_to_kiro(model_id, history):
     payload = {"model": model_id, "messages": history, "stream": False}
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {KIRO_API_KEY}"}
@@ -143,41 +84,18 @@ def send_to_kiro(model_id, history):
     else:
         raise Exception(f"Kiro: {response.status_code}")
 
-# ===== ОТПРАВКА В OPENROUTER =====
-def send_to_openrouter(model_id, history):
-    payload = {"model": model_id, "messages": history, "stream": False}
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {OPENROUTER_API_KEY}"}
-    response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=45)
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    else:
-        raise Exception(f"OpenRouter: {response.status_code}")
-
-# ===== ГЛАВНАЯ ФУНКЦИЯ ОТПРАВКИ =====
-def send_to_model(model_id, history):
-    info = get_model_info(model_id)
-    provider = info.get("provider")
-    if provider == "kiro":
-        return send_to_kiro(model_id, history)
-    elif provider == "openrouter":
-        return send_to_openrouter(model_id, history)
-    else:
-        raise Exception(f"Неизвестный провайдер: {provider}")
-
-# ===== КЛАВИАТУРА =====
 def main_menu():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(KeyboardButton("📖 Помощь"), KeyboardButton("ℹ️ О боте"), KeyboardButton("🧠 Модель"), KeyboardButton("📊 Лимиты"))
     return markup
 
-# ===== КОМАНДЫ =====
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     model_id = get_user_model(message.chat.id)
     model_name = MODELS.get(model_id, {}).get("name", "Claude Sonnet 4.5")
     bot.send_message(
         message.chat.id,
-        f"✅ Бот на Kiro + OpenRouter!\n"
+        f"✅ Бот на Claude + резерв\n"
         f"Текущая модель: {model_name}\n"
         f"Лимит: {get_model_limit(model_id)} запросов/день\n\n"
         f"Выбери действие на клавиатуре или напиши вопрос.",
@@ -208,7 +126,7 @@ def send_help(message):
 def send_info(message):
     bot.send_message(
         message.chat.id,
-        "🤖 Бот на Kiro + OpenRouter.\nKiro даёт Claude. OpenRouter — резерв.\nВсе модели бесплатны.",
+        "🤖 Бот на Kiro (Claude + резерв).\nВсе модели бесплатны.",
         reply_markup=main_menu()
     )
 
@@ -258,7 +176,6 @@ def set_model_callback(call):
         parse_mode="Markdown"
     )
 
-# ===== ОСНОВНОЙ ОБРАБОТЧИК =====
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     try:
@@ -271,20 +188,18 @@ def handle_message(message):
         add_to_history(user_id, "user", message.text)
         history = get_user_history(user_id)
 
-        reply = send_to_model(model_id, history)
-        
-        # ===== КЛЮЧЕВОЕ: ДОБАВЛЯЕМ ПОДПИСЬ С СОЗДАТЕЛЕМ =====
+        reply = send_to_kiro(model_id, history)
         reply += "\n\n👨‍💻 Создатель: @NeUstaI"
-        
+
         add_to_history(user_id, "assistant", reply)
         bot.reply_to(message, reply[:4096])
 
     except requests.exceptions.Timeout:
         bot.reply_to(message, "⏳ Модель не отвечает. Попробуй ещё раз.")
     except requests.exceptions.ConnectionError:
-        bot.reply_to(message, "❌ Не удалось подключиться к API.")
+        bot.reply_to(message, "❌ Не удалось подключиться к 9Router.")
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот на Kiro + OpenRouter запущен...")
+print("🚀 Бот на Kiro (3 модели) запущен...")
 bot.infinity_polling()
