@@ -7,93 +7,37 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
 
-# ===== 9ROUTER (KIRO) =====
+# ===== 9ROUTER =====
 KIRO_URL = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
 KIRO_API_KEY = "sk-9a01ae3cc4d291b1-vwry29-564841cc"
 
-# ===== API.AIRFORCE =====
-AIRFORCE_URL = "https://api.airforce/v1/chat/completions"
-AIRFORCE_API_KEY = "sk-air-XCS2bXZgzsQeW8ITSY1SuXE1c5EOr10rNIppOYx2zN0T1LCf"
-
-# ===== ПРЯМОЙ GEMINI =====
-GEMINI_API_KEY = "AQ.Ab8RN6Lj_kjFfg0fpLcgM0ZDAS_rZPN-gAqZ-z-jz9fjyeAIzw"
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
-# ===== МОДЕЛИ =====
+# ===== МОДЕЛИ (только через 9Router) =====
 MODELS = {
-    # ===== 9ROUTER (KIRO) =====
     "kr/claude-sonnet-4.5": {
-        "name": "Claude Sonnet 4.5 (Kiro)",
-        "desc": "Баланс скорости и качества",
-        "provider": "kiro",
+        "name": "Claude Sonnet 4.5",
+        "desc": "Универсальная",
         "limit": 200
     },
     "kr/claude-haiku-4.5": {
-        "name": "Claude Haiku 4.5 (Kiro)",
+        "name": "Claude Haiku 4.5",
         "desc": "Быстрая и лёгкая",
-        "provider": "kiro",
         "limit": 200
     },
     "kr/qwen3-coder-next": {
-        "name": "Qwen3 Coder (Kiro)",
+        "name": "Qwen3 Coder",
         "desc": "Для кода",
-        "provider": "kiro",
         "limit": 200
     },
     "kr/deepseek-3.2": {
-        "name": "DeepSeek 3.2 (Kiro)",
+        "name": "DeepSeek 3.2",
         "desc": "Альтернативная",
-        "provider": "kiro",
         "limit": 200
     },
     "kr/glm-5": {
-        "name": "GLM-5 (Kiro)",
+        "name": "GLM-5",
         "desc": "Китайская",
-        "provider": "kiro",
-        "limit": 200
-    },
-
-    # ===== API.AIRFORCE =====
-    "grok-4.1-fast-reasoning": {
-        "name": "Grok 4.1 (xAI)",
-        "desc": "Мощная логика, 2M контекста",
-        "provider": "airforce",
-        "limit": 200
-    },
-    "gemini-3.6-flash": {
-        "name": "Gemini 3.6 Flash (Airforce)",
-        "desc": "От Google, сбалансированная",
-        "provider": "airforce",
-        "limit": 200
-    },
-    "glm-5.3-flash": {
-        "name": "GLM 5.3 Flash",
-        "desc": "Огромный контекст (200K)",
-        "provider": "airforce",
-        "limit": 200
-    },
-    "gpt-oss-120b": {
-        "name": "GPT-OSS 120B",
-        "desc": "От OpenAI, открытая",
-        "provider": "airforce",
-        "limit": 200
-    },
-
-    # ===== ПРЯМОЙ GEMINI =====
-    "gemini-3.6-flash-direct": {
-        "name": "Gemini 3.6 Flash (прямой)",
-        "desc": "От Google, прямой ключ",
-        "provider": "gemini_direct",
-        "model_id": "gemini-2.0-flash",
-        "limit": 200
-    },
-    "gemini-3.5-flash-lite": {
-        "name": "Gemini 3.5 Flash Lite",
-        "desc": "Очень быстрая, дешёвая",
-        "provider": "gemini_direct",
-        "model_id": "gemini-2.5-flash-lite",
         "limit": 200
     },
 }
@@ -107,9 +51,6 @@ def get_user_model(user_id):
 
 def set_user_model(user_id, model_id):
     user_models[user_id] = model_id
-
-def get_model_info(model_id):
-    return MODELS.get(model_id, {})
 
 def get_model_limit(model_id):
     return MODELS.get(model_id, {}).get("limit", 100)
@@ -147,7 +88,7 @@ def add_to_history(user_id, role, content):
     if len(history) > 20:
         history.pop(0)
 
-# ===== ФУНКЦИИ ОТПРАВКИ =====
+# ===== ОТПРАВКА В 9ROUTER =====
 def send_to_kiro(model_id, history):
     payload = {
         "model": model_id,
@@ -162,55 +103,7 @@ def send_to_kiro(model_id, history):
     if response.status_code == 200:
         return response.json()["choices"][0]["message"]["content"]
     else:
-        raise Exception(f"Ошибка Kiro: {response.status_code}")
-
-def send_to_airforce(model_id, history):
-    payload = {
-        "model": model_id,
-        "messages": history,
-        "stream": False
-    }
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {AIRFORCE_API_KEY}"
-    }
-    response = requests.post(AIRFORCE_URL, headers=headers, json=payload, timeout=45)
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    else:
-        raise Exception(f"Ошибка Airforce: {response.status_code}")
-
-def send_to_gemini_direct(model_id, history):
-    # Собираем последние 3 сообщения пользователя
-    user_messages = [msg["content"] for msg in history if msg["role"] == "user"]
-    prompt = "\n".join(user_messages[-3:]) if user_messages else "Привет!"
-    url = GEMINI_URL.format(model=model_id, key=GEMINI_API_KEY)
-    data = {
-        "contents": [{"parts": [{"text": prompt}]}]
-    }
-    headers = {"Content-Type": "application/json"}
-    response = requests.post(url, headers=headers, json=data, timeout=45)
-    if response.status_code == 200:
-        result = response.json()
-        text = result.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-        if not text:
-            raise Exception("Пустой ответ от Gemini")
-        return text
-    else:
-        raise Exception(f"Ошибка Gemini: {response.status_code}")
-
-def send_to_model(model_id, history):
-    info = get_model_info(model_id)
-    provider = info.get("provider")
-    if provider == "kiro":
-        return send_to_kiro(model_id, history)
-    elif provider == "airforce":
-        return send_to_airforce(model_id, history)
-    elif provider == "gemini_direct":
-        real_model = info.get("model_id", "gemini-2.0-flash")
-        return send_to_gemini_direct(real_model, history)
-    else:
-        raise Exception(f"Неизвестный провайдер: {provider}")
+        raise Exception(f"Ошибка 9Router: {response.status_code}")
 
 # ===== КЛАВИАТУРА =====
 def main_menu():
@@ -230,7 +123,7 @@ def send_welcome(message):
     model_name = MODELS.get(model_id, {}).get("name", "Claude Sonnet 4.5")
     bot.send_message(
         message.chat.id,
-        f"✅ Бот работает на 3 провайдерах!\n"
+        f"✅ Бот работает через 9Router!\n"
         f"Текущая модель: {model_name}\n"
         f"Лимит: {get_model_limit(model_id)} запросов/день\n\n"
         f"Выбери действие на клавиатуре или напиши вопрос.",
@@ -271,10 +164,8 @@ def send_help(message):
 def send_info(message):
     bot.send_message(
         message.chat.id,
-        "🤖 Бот работает на 3 провайдерах:\n"
-        "• 9Router (Kiro) — Claude, Qwen, DeepSeek, GLM\n"
-        "• API.airforce — Grok, Gemini, GPT-OSS, GLM\n"
-        "• Прямой Gemini — от Google\n\n"
+        "🤖 Бот работает через 9Router.\n"
+        "Доступны модели: Claude, Qwen, DeepSeek, GLM.\n\n"
         "Все модели бесплатны.",
         reply_markup=main_menu()
     )
@@ -346,7 +237,7 @@ def handle_message(message):
         add_to_history(user_id, "user", message.text)
         history = get_user_history(user_id)
 
-        reply = send_to_model(model_id, history)
+        reply = send_to_kiro(model_id, history)
 
         add_to_history(user_id, "assistant", reply)
         bot.reply_to(message, reply[:4096])
@@ -354,9 +245,9 @@ def handle_message(message):
     except requests.exceptions.Timeout:
         bot.reply_to(message, "⏳ Модель не отвечает. Попробуй ещё раз.")
     except requests.exceptions.ConnectionError:
-        bot.reply_to(message, "❌ Не удалось подключиться к API.")
+        bot.reply_to(message, "❌ Не удалось подключиться к 9Router.")
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот на 3 провайдерах запущен...")
+print("🚀 Бот на 9Router запущен...")
 bot.infinity_polling()
