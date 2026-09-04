@@ -36,7 +36,7 @@ user_requests = {}
 user_history = {}
 
 def get_user_model(user_id):
-    return user_models.get(user_id, "claude-sonnet-4.5")
+    return user_models.get(user_id, "kr/claude-sonnet-4.5")
 
 def set_user_model(user_id, model_id):
     user_models[user_id] = model_id
