@@ -9,7 +9,7 @@ BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
 KIRO_URL = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
 KIRO_API_KEY = "sk-9a01ae3cc4d291b1-vwry29-564841cc"
 
-ADMIN_ID = 1825291275  # ЗАМЕНИ НА СВОЙ ID (узнай через @userinfobot)
+ADMIN_USERNAME = "NeUstaI"  # Твой юзернейм
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
@@ -23,52 +23,29 @@ MODELS = {
 user_models = {}
 user_requests = {}
 user_history = {}
-allowed_users = set()  # список разрешённых пользователей
+allowed_users = set()  # храним юзернеймы
 
-# ===== АНАЛИТИКА =====
-stats = {
-    "total_requests": 0,
-    "daily_requests": 0,
-    "last_date": date.today().isoformat(),
-    "model_usage": Counter(),
-    "user_activity": Counter(),
-}
+def is_admin(user):
+    return user.username == ADMIN_USERNAME
 
-def load_stats():
-    try:
-        with open("stats.json", "r") as f:
-            return json.load(f)
-    except:
-        return stats
-
-def save_stats():
-    with open("stats.json", "w") as f:
-        json.dump(stats, f, indent=2)
-
-stats = load_stats()
-if stats.get("last_date") != date.today().isoformat():
-    stats["daily_requests"] = 0
-    stats["last_date"] = date.today().isoformat()
+def is_allowed(user):
+    return user.username in allowed_users or is_admin(user)
 
 def load_allowed():
     try:
         with open("allowed.txt", "r") as f:
-            return set(int(line.strip()) for line in f if line.strip())
+            return set(line.strip().replace("@", "") for line in f if line.strip())
     except:
         return set()
 
 def save_allowed():
     with open("allowed.txt", "w") as f:
-        for uid in allowed_users:
-            f.write(f"{uid}\n")
+        for username in allowed_users:
+            f.write(f"{username}\n")
 
 allowed_users = load_allowed()
 
-# ===== ПРОВЕРКА ДОСТУПА =====
-def is_allowed(user_id):
-    return user_id in allowed_users or user_id == ADMIN_ID
-
-# ===== ОСНОВНЫЕ ФУНКЦИИ =====
+# ===== ФУНКЦИИ (остальные без изменений) =====
 def get_user_model(user_id):
     return user_models.get(user_id, "kr/claude-sonnet-4.5")
 
@@ -125,61 +102,45 @@ def main_menu():
     markup.add(KeyboardButton("📖 Помощь"), KeyboardButton("ℹ️ О боте"), KeyboardButton("🧠 Модель"), KeyboardButton("📊 Лимиты"))
     return markup
 
-# ===== КОМАНДЫ ДЛЯ АДМИНА =====
+# ===== КОМАНДЫ АДМИНА =====
 @bot.message_handler(commands=['adduser'])
 def add_user(message):
-    if message.from_user.id != ADMIN_ID:
+    if not is_admin(message.from_user):
         bot.reply_to(message, "⛔ Нет прав.")
         return
     try:
-        new_id = int(message.text.split()[1])
-        allowed_users.add(new_id)
+        username = message.text.split()[1].replace("@", "")
+        allowed_users.add(username)
         save_allowed()
-        bot.reply_to(message, f"✅ Пользователь {new_id} добавлен.")
+        bot.reply_to(message, f"✅ Пользователь @{username} добавлен.")
     except:
-        bot.reply_to(message, "❌ Используй: /adduser ID")
+        bot.reply_to(message, "❌ Используй: /adduser @username")
 
 @bot.message_handler(commands=['removeuser'])
 def remove_user(message):
-    if message.from_user.id != ADMIN_ID:
+    if not is_admin(message.from_user):
         bot.reply_to(message, "⛔ Нет прав.")
         return
     try:
-        new_id = int(message.text.split()[1])
-        allowed_users.discard(new_id)
+        username = message.text.split()[1].replace("@", "")
+        allowed_users.discard(username)
         save_allowed()
-        bot.reply_to(message, f"✅ Пользователь {new_id} удалён.")
+        bot.reply_to(message, f"✅ Пользователь @{username} удалён.")
     except:
-        bot.reply_to(message, "❌ Используй: /removeuser ID")
-
-@bot.message_handler(commands=['stats'])
-def show_stats(message):
-    if message.from_user.id != ADMIN_ID:
-        bot.reply_to(message, "⛔ Нет прав.")
-        return
-    text = (
-        f"📊 *Статистика*\n"
-        f"Всего запросов: {stats['total_requests']}\n"
-        f"Запросов сегодня: {stats['daily_requests']}\n"
-        f"Активных пользователей: {len(stats['user_activity'])}\n"
-        f"Топ-модели:\n"
-    )
-    for model, count in stats['model_usage'].most_common(5):
-        text += f"  • {model}: {count}\n"
-    bot.send_message(message.chat.id, text, parse_mode="Markdown")
+        bot.reply_to(message, "❌ Используй: /removeuser @username")
 
 @bot.message_handler(commands=['listusers'])
 def list_users(message):
-    if message.from_user.id != ADMIN_ID:
+    if not is_admin(message.from_user):
         bot.reply_to(message, "⛔ Нет прав.")
         return
-    text = "📋 Разрешённые пользователи:\n" + "\n".join(str(uid) for uid in allowed_users)
-    bot.reply_to(message, text)
+    text = "📋 Разрешённые пользователи:\n" + "\n".join(f"@{u}" for u in allowed_users)
+    bot.reply_to(message, text or "Список пуст")
 
-# ===== ОСНОВНЫЕ КОМАНДЫ ДЛЯ ВСЕХ =====
+# ===== ОСТАЛЬНЫЕ КОМАНДЫ (те же) =====
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    if not is_allowed(message.from_user.id):
+    if not is_allowed(message.from_user):
         bot.reply_to(message, "⛔ Доступ запрещён. Обратитесь к @NeUstaI")
         return
     model_id = get_user_model(message.chat.id)
@@ -195,45 +156,35 @@ def send_welcome(message):
 
 @bot.message_handler(func=lambda message: message.text == "📖 Помощь")
 def help_button(message):
-    if not is_allowed(message.from_user.id): return
-    send_help(message)
-
-@bot.message_handler(func=lambda message: message.text == "ℹ️ О боте")
-def info_button(message):
-    if not is_allowed(message.from_user.id): return
-    send_info(message)
-
-@bot.message_handler(func=lambda message: message.text == "🧠 Модель")
-def model_button(message):
-    if not is_allowed(message.from_user.id): return
-    show_models(message)
-
-@bot.message_handler(func=lambda message: message.text == "📊 Лимиты")
-def limits_button(message):
-    if not is_allowed(message.from_user.id): return
-    show_limits(message)
-
-@bot.message_handler(commands=['help'])
-def send_help(message):
-    if not is_allowed(message.from_user.id): return
+    if not is_allowed(message.from_user): return
     bot.send_message(
         message.chat.id,
         "📖 Команды:\n/start — главное меню\n/model — выбрать модель\n/limits — остаток запросов\n/help — справка\n/info — о боте\n\nИли используй кнопки внизу.",
         reply_markup=main_menu()
     )
 
-@bot.message_handler(commands=['info'])
-def send_info(message):
-    if not is_allowed(message.from_user.id): return
+@bot.message_handler(func=lambda message: message.text == "ℹ️ О боте")
+def info_button(message):
+    if not is_allowed(message.from_user): return
     bot.send_message(
         message.chat.id,
         "🤖 Бот на Kiro (Claude + резерв).\nВсе модели бесплатны.",
         reply_markup=main_menu()
     )
 
+@bot.message_handler(func=lambda message: message.text == "🧠 Модель")
+def model_button(message):
+    if not is_allowed(message.from_user): return
+    show_models(message)
+
+@bot.message_handler(func=lambda message: message.text == "📊 Лимиты")
+def limits_button(message):
+    if not is_allowed(message.from_user): return
+    show_limits(message)
+
 @bot.message_handler(commands=['limits'])
 def show_limits(message):
-    if not is_allowed(message.from_user.id): return
+    if not is_allowed(message.from_user): return
     user_id = message.chat.id
     remaining = get_remaining_requests(user_id)
     model_id = get_user_model(user_id)
@@ -248,7 +199,7 @@ def show_limits(message):
 
 @bot.message_handler(commands=['model'])
 def show_models(message):
-    if not is_allowed(message.from_user.id): return
+    if not is_allowed(message.from_user): return
     user_id = message.chat.id
     current_model = get_user_model(user_id)
     current_name = MODELS.get(current_model, {}).get("name", "не выбрана")
@@ -266,7 +217,7 @@ def show_models(message):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("model_"))
 def set_model_callback(call):
-    if not is_allowed(call.message.chat.id):
+    if not is_allowed(call.from_user):
         bot.answer_callback_query(call.id, "⛔ Доступ запрещён")
         return
     model_id = call.data.split("_", 1)[1]
@@ -284,20 +235,17 @@ def set_model_callback(call):
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    if not is_allowed(message.from_user.id):
-        return  # просто игнорируем неавторизованных
+    if not is_allowed(message.from_user):
+        return
 
     try:
         user_id = message.chat.id
-        username = message.from_user.username or "unknown"
-        text = message.text
-
         if not can_send_message(user_id):
             bot.reply_to(message, "⚠️ Ты исчерпал дневной лимит.")
             return
 
         model_id = get_user_model(user_id)
-        add_to_history(user_id, "user", text)
+        add_to_history(user_id, "user", message.text)
         history = get_user_history(user_id)
 
         reply = send_to_kiro(model_id, history)
@@ -306,13 +254,6 @@ def handle_message(message):
         add_to_history(user_id, "assistant", reply)
         bot.reply_to(message, reply[:4096])
 
-        # ===== АНАЛИТИКА =====
-        stats["total_requests"] += 1
-        stats["daily_requests"] += 1
-        stats["model_usage"][model_id] += 1
-        stats["user_activity"][str(user_id)] = datetime.now().isoformat()
-        save_stats()
-
     except requests.exceptions.Timeout:
         bot.reply_to(message, "⏳ Модель не отвечает. Попробуй ещё раз.")
     except requests.exceptions.ConnectionError:
@@ -320,5 +261,5 @@ def handle_message(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот с доступом и аналитикой запущен...")
+print("🚀 Бот с доступом по юзернейму запущен...")
 bot.infinity_polling()
