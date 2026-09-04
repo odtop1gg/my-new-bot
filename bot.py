@@ -7,37 +7,42 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
 
-# ===== 9ROUTER (использует OpenCode Free) =====
+# ===== 9ROUTER =====
 KIRO_URL = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
 KIRO_API_KEY = "sk-9a01ae3cc4d291b1-vwry29-564841cc"
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
-# ===== МОДЕЛИ (без привязки к провайдеру, 9Router сам направит на OpenCode Free) =====
+# ===== МОДЕЛИ OpenCode Free (префикс oc/) =====
 MODELS = {
-    "claude-sonnet-4.5": {
+    "oc/claude-sonnet-4.5": {
         "name": "Claude Sonnet 4.5",
         "desc": "Универсальная",
         "limit": 200
     },
-    "claude-haiku-4.5": {
+    "oc/claude-haiku-4.5": {
         "name": "Claude Haiku 4.5",
         "desc": "Быстрая и лёгкая",
         "limit": 200
     },
-    "qwen3-coder-next": {
+    "oc/qwen3-coder-next": {
         "name": "Qwen3 Coder",
         "desc": "Для кода",
         "limit": 200
     },
-    "deepseek-3.2": {
+    "oc/deepseek-3.2": {
         "name": "DeepSeek 3.2",
         "desc": "Альтернативная",
         "limit": 200
     },
-    "glm-5": {
+    "oc/glm-5": {
         "name": "GLM-5",
         "desc": "Китайская",
+        "limit": 200
+    },
+    "oc/mimo-v2.5-free": {
+        "name": "Mimo V2.5 Free",
+        "desc": "От Xiaomi",
         "limit": 200
     },
 }
@@ -47,7 +52,7 @@ user_requests = {}
 user_history = {}
 
 def get_user_model(user_id):
-    return user_models.get(user_id, "claude-sonnet-4.5")
+    return user_models.get(user_id, "oc/claude-sonnet-4.5")
 
 def set_user_model(user_id, model_id):
     user_models[user_id] = model_id
@@ -165,7 +170,7 @@ def send_info(message):
     bot.send_message(
         message.chat.id,
         "🤖 Бот работает через 9Router с провайдером OpenCode Free.\n"
-        "Доступны модели: Claude, Qwen, DeepSeek, GLM.\n\n"
+        "Доступны модели: Claude, Qwen, DeepSeek, GLM, Mimo.\n\n"
         "Все модели бесплатны.",
         reply_markup=main_menu()
     )
