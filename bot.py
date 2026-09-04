@@ -7,35 +7,35 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
 
-# ===== 9ROUTER =====
+# ===== 9ROUTER (использует OpenCode Free) =====
 KIRO_URL = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
 KIRO_API_KEY = "sk-9a01ae3cc4d291b1-vwry29-564841cc"
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
-# ===== МОДЕЛИ (только через 9Router) =====
+# ===== МОДЕЛИ (без привязки к провайдеру, 9Router сам направит на OpenCode Free) =====
 MODELS = {
-    "kr/claude-sonnet-4.5": {
+    "claude-sonnet-4.5": {
         "name": "Claude Sonnet 4.5",
         "desc": "Универсальная",
         "limit": 200
     },
-    "kr/claude-haiku-4.5": {
+    "claude-haiku-4.5": {
         "name": "Claude Haiku 4.5",
         "desc": "Быстрая и лёгкая",
         "limit": 200
     },
-    "kr/qwen3-coder-next": {
+    "qwen3-coder-next": {
         "name": "Qwen3 Coder",
         "desc": "Для кода",
         "limit": 200
     },
-    "kr/deepseek-3.2": {
+    "deepseek-3.2": {
         "name": "DeepSeek 3.2",
         "desc": "Альтернативная",
         "limit": 200
     },
-    "kr/glm-5": {
+    "glm-5": {
         "name": "GLM-5",
         "desc": "Китайская",
         "limit": 200
@@ -47,7 +47,7 @@ user_requests = {}
 user_history = {}
 
 def get_user_model(user_id):
-    return user_models.get(user_id, "kr/claude-sonnet-4.5")
+    return user_models.get(user_id, "claude-sonnet-4.5")
 
 def set_user_model(user_id, model_id):
     user_models[user_id] = model_id
@@ -123,7 +123,7 @@ def send_welcome(message):
     model_name = MODELS.get(model_id, {}).get("name", "Claude Sonnet 4.5")
     bot.send_message(
         message.chat.id,
-        f"✅ Бот работает через 9Router!\n"
+        f"✅ Бот работает через 9Router + OpenCode Free!\n"
         f"Текущая модель: {model_name}\n"
         f"Лимит: {get_model_limit(model_id)} запросов/день\n\n"
         f"Выбери действие на клавиатуре или напиши вопрос.",
@@ -164,7 +164,7 @@ def send_help(message):
 def send_info(message):
     bot.send_message(
         message.chat.id,
-        "🤖 Бот работает через 9Router.\n"
+        "🤖 Бот работает через 9Router с провайдером OpenCode Free.\n"
         "Доступны модели: Claude, Qwen, DeepSeek, GLM.\n\n"
         "Все модели бесплатны.",
         reply_markup=main_menu()
@@ -249,5 +249,5 @@ def handle_message(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот на 9Router запущен...")
+print("🚀 Бот на 9Router + OpenCode Free запущен...")
 bot.infinity_polling()
