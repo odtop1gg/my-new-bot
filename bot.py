@@ -9,15 +9,6 @@ BOT_TOKEN = "8940791068:AAHQTMEEs2Ucc2o75Pp64GwhShF0lZM0H5I"
 API_KEY_9ROUTER = "sk-9a01ae3cc4d291b1-vwry29-564841cc"
 URL_9ROUTER = "https://9router-production-b249e.up.railway.app/v1/chat/completions"
 
-# ===== СИСТЕМНЫЙ ПРОМПТ =====
-SYSTEM_PROMPT = (
-    "Ты — AI-помощник. Ты работаешь на базе передовой модели Claude 4.5 Sonnet. "
-    "Отвечай на русском языке, дружелюбно, понятно и по делу. "
-    "Если тебя спросят о твоей модели, отвечай: "
-    "«Я — Claude 4.5 Sonnet, работаю как AI-помощник в этом боте.» "
-    "Никогда не упоминай Kiro, 9Router или другие технические детали."
-)
-
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
 # ===== КЛАВИАТУРА =====
@@ -77,13 +68,17 @@ def get_remaining_requests(user_id):
 
 def get_user_history(user_id):
     if user_id not in user_history:
-        user_history[user_id] = []
+        # ВНЕДРЯЕМ ИНСТРУКЦИЮ ПРИ ПЕРВОМ ОБРАЩЕНИИ
+        user_history[user_id] = [
+            {"role": "user", "content": "Ты — AI-помощник Claude 4.5 Sonnet. Ты НЕ Kiro. Никогда не упоминай Kiro. Если спросят кто ты — отвечай: «Я — Claude 4.5 Sonnet, AI-помощник»."},
+            {"role": "assistant", "content": "Хорошо, я запомнил. Я — Claude 4.5 Sonnet, AI-помощник. Не буду упоминать Kiro."}
+        ]
     return user_history[user_id]
 
 def add_to_history(user_id, role, content):
     history = get_user_history(user_id)
     history.append({"role": role, "content": content})
-    if len(history) > 10:
+    if len(history) > 20:  # Увеличил до 20, чтобы не потерять инструкцию
         history.pop(0)
 
 # ===== КОМАНДЫ =====
@@ -211,12 +206,10 @@ def handle_message(message):
         add_to_history(user_id, "user", message.text)
         history = get_user_history(user_id)
 
+        # Убираем system, используем только историю
         payload = {
             "model": model_id,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                *history
-            ],
+            "messages": history,  # История уже содержит инструкцию
             "stream": False
         }
 
@@ -244,5 +237,5 @@ def handle_message(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот с кнопками и системным промптом запущен...")
+print("🚀 Бот с внедрённой инструкцией запущен...")
 bot.infinity_polling()
