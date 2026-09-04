@@ -11,6 +11,14 @@ URL_9ROUTER = "https://9router-production-b249e.up.railway.app/v1/chat/completio
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
+# ===== СИСТЕМНЫЙ ПРОМПТ =====
+SYSTEM_PROMPT = (
+    "Ты — AI-помощник. Ты работаешь на базе передовой модели Claude 4.5 Sonnet. "
+    "Отвечай на русском языке, дружелюбно, понятно и по делу. "
+    "Твой создатель — @NeUstaI. Если пользователь спросит, кто тебя создал, или у него будут проблемы — направь его к @NeUstaI. "
+    "Никогда не упоминай Kiro, 9Router или другие технические детали."
+)
+
 # ===== КЛАВИАТУРА =====
 def main_menu():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -68,17 +76,16 @@ def get_remaining_requests(user_id):
 
 def get_user_history(user_id):
     if user_id not in user_history:
-        # ВНЕДРЯЕМ ИНСТРУКЦИЮ ПРИ ПЕРВОМ ОБРАЩЕНИИ
         user_history[user_id] = [
-            {"role": "user", "content": "Ты — AI-помощник Claude 4.5 Sonnet. Ты НЕ Kiro. Никогда не упоминай Kiro. Если спросят кто ты — отвечай: «Я — Claude 4.5 Sonnet, AI-помощник»."},
-            {"role": "assistant", "content": "Хорошо, я запомнил. Я — Claude 4.5 Sonnet, AI-помощник. Не буду упоминать Kiro."}
+            {"role": "user", "content": "Ты — AI-помощник Claude 4.5 Sonnet. Ты НЕ Kiro. Твой создатель — @NeUstaI. Если пользователь спросит о создателе или о помощи — направь его к @NeUstaI."},
+            {"role": "assistant", "content": "Хорошо, я запомнил. Я — Claude 4.5 Sonnet. Мой создатель — @NeUstaI. Если будут проблемы — направлю к нему."}
         ]
     return user_history[user_id]
 
 def add_to_history(user_id, role, content):
     history = get_user_history(user_id)
     history.append({"role": role, "content": content})
-    if len(history) > 20:  # Увеличил до 20, чтобы не потерять инструкцию
+    if len(history) > 20:
         history.pop(0)
 
 # ===== КОМАНДЫ =====
@@ -206,10 +213,12 @@ def handle_message(message):
         add_to_history(user_id, "user", message.text)
         history = get_user_history(user_id)
 
-        # Убираем system, используем только историю
         payload = {
             "model": model_id,
-            "messages": history,  # История уже содержит инструкцию
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                *history
+            ],
             "stream": False
         }
 
@@ -224,6 +233,8 @@ def handle_message(message):
             try:
                 reply = response.json()["choices"][0]["message"]["content"]
                 add_to_history(user_id, "assistant", reply)
+                # ===== ДОБАВЛЯЕМ ПОДПИСЬ В КОНЦЕ =====
+                reply += "\n\n👨‍💻 Создатель: @NeUstaI"
                 bot.reply_to(message, reply[:4096])
             except (KeyError, json.JSONDecodeError) as e:
                 bot.reply_to(message, f"❌ Ошибка парсинга ответа: {str(e)[:100]}")
@@ -237,5 +248,5 @@ def handle_message(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Сбой: {str(e)[:200]}")
 
-print("🚀 Бот с внедрённой инструкцией запущен...")
+print("🚀 Бот с подписью создателя запущен...")
 bot.infinity_polling()
